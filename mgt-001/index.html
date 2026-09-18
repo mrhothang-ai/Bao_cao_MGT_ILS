@@ -190,7 +190,7 @@ table.entry tr.tot td.pname{color:var(--accent)}
   <div class="blocktitle" style="margin-top:6px"><span class="pill" style="background:#5B6B7F">A·1</span><h2 style="font-size:13.5px">TỶ LỆ ĐI LÀM — Năm · Tháng · Tuần · Ngày (%)</h2><span class="sub">bấm tên Part để xem chi tiết theo nhóm · đỏ = dưới 90%</span></div>
   <div class="tscroll"><table class="rep" id="tblA"><thead></thead><tbody></tbody></table></div>
 
-  <div class="blocktitle"><span class="pill" style="background:#5B6B7F">A·2</span><h2 style="font-size:13.5px">SO TIÊU CHUẨN BCD THEO TUẦN</h2><span class="sub">TC Ca ngày/Ca đêm/HC/Tổng vs Đi làm thực tế · đỏ = chưa đạt / thiếu người</span></div>
+  <div class="blocktitle"><span class="pill" style="background:#5B6B7F">A·2</span><h2 style="font-size:13.5px">SO TIÊU CHUẨN BCD THEO TUẦN — CẢ 2 CA</h2><span class="sub">Ca ngày (A) · Ca đêm (C) · Tổng gồm HC · ca chưa nhập hiện "–" · đỏ = chưa đạt tiêu chuẩn</span></div>
   <div class="tscroll"><table class="rep" id="tblBCD"><thead></thead><tbody></tbody></table></div>
 
   <div class="blocktitle"><span class="pill" style="background:#5B6B7F">A·3</span><h2 style="font-size:13.5px">CƠ CẤU NHÓM LAO ĐỘNG — W38</h2><span class="sub">theo danh sách · toàn NM và từng Part</span></div>
@@ -219,22 +219,22 @@ table.entry tr.tot td.pname{color:var(--accent)}
   </div><!-- /view-report -->
 
   <div id="view-input" hidden>
-    <div class="form-head"><b>Nhập nhân lực theo ngày</b> — dán khối copy từ sheet Excel vào ô bên dưới rồi bấm <b>Phân tích</b> (hoặc điền tay), kiểm tra bảng, rồi <b>Gửi</b>. Nghỉ = Tổng − Đi làm (tự tính). Ghi đè theo Ngày + Part + Nhóm.</div>
+    <div class="form-head"><b>Nhập nhân lực theo ngày — theo CA (HC / Ca ngày A / Ca đêm C)</b>. Dán khối copy từ sheet Sum rồi bấm <b>Phân tích</b>, hoặc điền tay. <b>Ca nào chưa đi làm để trống</b> — vẫn gửi được (chỉ ghi những ô có số). Nghỉ = Tổng − Đi làm (tự tính). Ghi đè theo Ngày + Part + Nhóm + Ca. GA nhập gộp vào HR.</div>
     <div class="form-row">
       <label>Ngày</label><input type="date" id="in-date" onchange="updWeek()">
       <label>thuộc tuần</label><span class="pill" id="in-week">–</span>
     </div>
-    <textarea id="paste" placeholder="Dán (Ctrl+V) khối dữ liệu copy từ sheet Excel vào đây rồi bấm Phân tích… (hệ thống tự dò tên Part + nhóm và lấy Tổng / Đi làm)"></textarea>
+    <textarea id="paste" placeholder="Dán (Ctrl+V) khối copy từ sheet Sum (cột HC / Ca ngày / Ca đêm) rồi bấm Phân tích… hệ thống dò Part + nhóm và lấy Sum/Work của từng ca."></textarea>
     <div class="form-btns">
       <button class="act" onclick="parsePaste()">🔎 Phân tích khối đã dán</button>
-      <button class="act" onclick="fillExample()">Điền số W38 mẫu</button>
+      <button class="act" onclick="fillExample()">Điền mẫu (ngày 17/09)</button>
       <button class="act" onclick="clearEntry()">Xoá trắng</button>
     </div>
     <div class="tscroll"><table class="entry" id="entry"><thead><tr>
-      <th class="pname" style="text-align:left">Part</th>
+      <th class="pname" style="text-align:left">Part / Ca</th>
       <th class="gCT" colspan="2">Chính thức</th><th class="gHN" colspan="2">Hướng nghiệp</th>
       <th class="gTV" colspan="2">Thời vụ</th><th class="gNN" colspan="2">NL ngắn ngày</th>
-      <th colspan="2">Tổng Part</th></tr>
+      <th colspan="2">Tổng ca</th></tr>
       <tr><th class="pname" style="text-align:left"></th>
       <th>Tổng</th><th>Đi làm</th><th>Tổng</th><th>Đi làm</th><th>Tổng</th><th>Đi làm</th><th>Tổng</th><th>Đi làm</th>
       <th>Tổng</th><th>Đi làm</th></tr></thead>
@@ -435,29 +435,41 @@ function renderA1(){
   });
 }
 function toggleExp(key,e){ if(e){ if(e.target.closest(".hidebtn")) return; e.stopPropagation(); } if(expanded.has(key))expanded.delete(key); else expanded.add(key); renderA1(); }
-/* A·2 — so tiêu chuẩn BCD theo tuần: TC Ca ngày/đêm/HC/Tổng vs Đi làm thực tế */
+/* A·2 — so tiêu chuẩn BCD theo tuần, HIỂN THỊ CẢ 2 CA (Ca ngày A · Ca đêm C) + Tổng (gồm HC).
+   Ca chưa nhập (vd ca đêm chưa đi làm) hiện "–"; Tổng vẫn tính từ số đã có. */
 function renderBCD(){
   const tbl=document.getElementById("tblBCD");
   tbl.querySelector("thead").innerHTML=
     `<tr class="grp"><th class="lbl-col" rowspan="2" style="text-align:left">Part</th>`+
-    `<th colspan="4">Tiêu chuẩn BCD — tuần ${selWk} (người)</th>`+
-    `<th rowspan="2">Đi làm<br>thực tế</th><th rowspan="2">Đáp ứng<br>TT÷Tổng</th><th rowspan="2">Gap<br>người</th></tr>`+
-    `<tr><th>Ca ngày</th><th>Ca đêm</th><th>HC</th><th>Tổng TC</th></tr>`;
+    `<th colspan="3" class="col-day">Ca ngày (A) · 주간</th>`+
+    `<th colspan="3">Ca đêm (C) · 야간</th>`+
+    `<th colspan="4" class="col-wsel">Tổng (gồm HC) — tuần ${selWk}</th></tr>`+
+    `<tr><th class="col-day">TC</th><th class="col-day">Đi làm</th><th class="col-day">Đạt</th>`+
+    `<th>TC</th><th>Đi làm</th><th>Đạt</th>`+
+    `<th class="col-wsel">TC</th><th class="col-wsel">Đi làm</th><th class="col-wsel">Đạt</th><th class="col-wsel">Gap</th></tr>`;
   const tb=tbl.querySelector("tbody"); tb.innerHTML="";
   const B=BCDATA[selWk]||{}, A=ACTUAL[selWk]||{};
+  const pctCell=(std,act,has,extraCl)=>{
+    const tc = std? std : '–';
+    if(!has) return `<td class="num${extraCl}">${tc}</td><td class="na${extraCl}">–</td><td class="na${extraCl}">–</td>`;
+    const p = std? (act/std*100):0; const cl = std&&p<100?" c-bad":"";
+    return `<td class="num${extraCl}">${tc}</td><td class="num${extraCl}">${act}</td><td class="num${cl}${extraCl}">${std?comma(p.toFixed(1))+'%':'–'}</td>`;
+  };
   BCD_ROWS.forEach(r=>{
     if(hidden.has(r.key)) return;
     const s=B[r.part]||{day:0,night:0,hc:0,total:0};
-    const act=(A[r.part]||{}).dilam||0;
-    const resp = s.total? (act/s.total*100):0, gap = act - s.total;
-    const respCl = s.total&&resp<100?" c-bad":""; const gapCl=(s.total&&gap<0)?" c-bad":"";
+    const a=A[r.part]||{};
+    const totAct=a.dilam||0, hasTot=totAct>0, resp=s.total?(totAct/s.total*100):0, gap=totAct-s.total;
+    const respCl=hasTot&&s.total&&resp<100?" c-bad":""; const gapCl=(hasTot&&s.total&&gap<0)?" c-bad":"";
     const lblInner=`<span class="lbltxt"><span class="l1">${r.label}</span><span class="l2">${r.l2}</span></span>${hideBtn(r.key)}`;
     tb.insertAdjacentHTML("beforeend",
       `<tr><td class="lbl-col ind"><div class="lblwrap">${lblInner}</div></td>`+
-      `<td class="num">${s.day||'–'}</td><td class="num">${s.night||'–'}</td><td class="num">${s.hc||'–'}</td>`+
-      `<td class="num"><b>${s.total||'–'}</b></td><td class="num">${act||'–'}</td>`+
-      `<td class="num${respCl}">${s.total?comma(resp.toFixed(1))+'%':'–'}</td>`+
-      `<td class="num${gapCl}">${s.total?(gap>0?'+'+gap:gap):'–'}</td></tr>`);
+      pctCell(s.day, (a.A||{}).w||0, (a.A||{}).has, " col-day")+
+      pctCell(s.night, (a.C||{}).w||0, (a.C||{}).has, "")+
+      `<td class="num col-wsel"><b>${s.total||'–'}</b></td>`+
+      `<td class="num col-wsel">${hasTot?totAct:'–'}</td>`+
+      `<td class="num${respCl} col-wsel">${hasTot&&s.total?comma(resp.toFixed(1))+'%':'–'}</td>`+
+      `<td class="num${gapCl} col-wsel">${hasTot&&s.total?(gap>0?'+'+gap:gap):'–'}</td></tr>`);
   });
 }
 function render(){ renderA1(); renderBCD(); renderTable("tblB",ROWS_B,false); renderCompo(); updateRestore();
@@ -478,9 +490,16 @@ function _rate(nl,parts,wks){ let t=0,w=0; wks.forEach(wl=>{ const s=_sum(nl,par
 function latestWk(nl){ for(let i=WKALL.length-1;i>=0;i--) if(nl[WKALL[i]]&&Object.keys(nl[WKALL[i]]).length) return WKALL[i]; return WKALL[WKALL.length-1]; }
 function applyLive(j){
   const nl=j.nl||{};
-  // số thực tế theo tuần×part (cộng dồn các nhóm) — cho A·2
-  ACTUAL={}; Object.keys(nl).forEach(wl=>{ ACTUAL[wl]={}; const wk=nl[wl];
-    for(const part in wk){ let t=0,w=0; const g=wk[part]; for(const k in g){ t+=g[k].tong||0; w+=g[k].dilam||0; } ACTUAL[wl][part]={tong:t,dilam:w}; } });
+  // ảnh chụp NGÀY mới nhất mỗi tuần (cho A·2/A·3/cơ cấu/tổng header). Offline (chưa có) → dùng nl.
+  const nlday=(j.nlday && Object.keys(j.nlday).length)? j.nlday : nl;
+  // số thực tế NGÀY mới nhất theo tuần×part + tách theo ca (HC/A/C) — cho A·2
+  ACTUAL={}; Object.keys(nlday).forEach(wl=>{ ACTUAL[wl]={}; const wk=nlday[wl];
+    for(const part in wk){ let t=0,w=0; const S={HC:{t:0,w:0},A:{t:0,w:0},C:{t:0,w:0}};
+      const g=wk[part];
+      for(const k in g){ const nd=g[k]; t+=nd.tong||0; w+=nd.dilam||0;
+        if(nd.ca){ for(const s in nd.ca){ if(S[s]){ S[s].t+=nd.ca[s].tong||0; S[s].w+=nd.ca[s].dilam||0; } } } }
+      ACTUAL[wl][part]={tong:t,dilam:w,
+        A:{t:S.A.t,w:S.A.w,has:S.A.t>0}, C:{t:S.C.t,w:S.C.w,has:S.C.t>0}, HC:{t:S.HC.t,w:S.HC.w,has:S.HC.t>0}}; } });
   // tiêu chuẩn BCD theo tuần (nếu nguồn có) — giữ nguyên nếu lần gọi này không kèm bcd
   if(j.bcd && Object.keys(j.bcd).length) BCDATA=j.bcd;
   // toàn bộ tuần có trong dữ liệu, sắp theo số tuần
@@ -492,12 +511,12 @@ function applyLive(j){
     r.months={}; MONTHS.forEach(mk=>{ r.months[mk]=_rate(nl,P,monthWeeks(mk)); });
     r.quarters={}; ["Q1","Q2","Q3","Q4"].forEach(q=>{ const qw=quarterWeeks(q); if(qw.length) r.quarters[q]=_rate(nl,P,qw); }); });
   const lw=latestWk(nl);
-  Object.keys(PGROUPS).forEach(k=>{ const P=ROW_PARTS[_key(k)]; const part=P&&P[0]; const g=(nl[lw]&&nl[lw][part])||{};
+  Object.keys(PGROUPS).forEach(k=>{ const P=ROW_PARTS[_key(k)]; const part=P&&P[0]; const g=(nlday[lw]&&nlday[lw][part])||{};
     PGROUPS[k]={CT:g.CT?[g.CT.tong,g.CT.dilam]:[0,0],HN:g.HN?[g.HN.tong,g.HN.dilam]:[0,0],TV:g.TV?[g.TV.tong,g.TV.dilam]:[0,0]}; });
   COMPO.forEach(u=>{ const P=ROW_PARTS[_key(u.key)]; if(!P)return; const c={CT:0,HN:0,TV:0,NN:0};
-    P.forEach(part=>{ const g=nl[lw]&&nl[lw][part]; if(g)for(const k in g){ if(c[k]!==undefined)c[k]+=g[k].tong||0; } });
+    P.forEach(part=>{ const g=nlday[lw]&&nlday[lw][part]; if(g)for(const k in g){ if(c[k]!==undefined)c[k]+=g[k].tong||0; } });
     u.ct=c.CT; u.hn=c.HN; u.tv=c.TV; u.nn=c.NN; });
-  const tot=_sum(nl,ROW_PARTS.toanNM,lw), rt=tot[0]?(tot[1]/tot[0]*100).toFixed(1).replace(".",","):"–";
+  const tot=_sum(nlday,ROW_PARTS.toanNM,lw), rt=tot[0]?(tot[1]/tot[0]*100).toFixed(1).replace(".",","):"–";
   const hd=document.getElementById("hd-total"); if(hd) hd.textContent=tot[0].toLocaleString("vi")+" · đi làm "+tot[1].toLocaleString("vi")+" ("+rt+"%)";
   const hw=document.getElementById("hd-wk"); if(hw) hw.textContent="Toàn NM "+lw;
   render();
@@ -507,7 +526,7 @@ function setBanner(live,updated){
   if(live){ const d=updated?new Date(updated):new Date();
     const dd=String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+" "+String(d.getHours()).padStart(2,"0")+"h"+String(d.getMinutes()).padStart(2,"0");
     b.style.background="#E7F3EC"; b.style.borderColor="#B7DEC8"; b.style.color="#0E6A47";
-    b.innerHTML="🟢 <b>Dữ liệu trực tiếp từ Google Sheet</b> · cập nhật "+dd+" · A·2 so tiêu chuẩn BCD theo tuần (Ca ngày/đêm/HC) · KPI Phần B dùng số tham chiếu tới khi có nguồn nhập."; }
+    b.innerHTML="🟢 <b>Dữ liệu trực tiếp từ Google Sheet</b> · cập nhật "+dd+" · A·2 so BCD cả 2 ca (ngày mới nhất trong tuần) · KPI Phần B dùng số tham chiếu tới khi có nguồn nhập."; }
   else { b.style.background="#FBF1DE"; b.style.borderColor="#F0D98A"; b.style.color="#8A6A00";
     b.innerHTML="🟡 Chưa đọc được số trực tiếp (đang dùng số mẫu) — kiểm tra quyền deploy \"Anyone\" hoặc CORS. Nhập liệu vẫn ghi được lên Sheet."; }
 }
@@ -528,52 +547,63 @@ function switchTab(t){
   document.getElementById("tb-report").classList.toggle("on",t==="report");
   document.getElementById("tb-input").classList.toggle("on",t==="input");
 }
-const ENTRY_PARTS=[["Production","Production P"],["QC","QC P"],["Automation","Automation P"],["INNO","Innovation P"],["MM","Material Mgmt P"],["EQM","Equipment P"],["HR","HR P"],["GA","GA P"]];
+const ENTRY_PARTS=[["Production","Production"],["QC","QC"],["INNO","Innovation"],["MM","Material Mgmt"],["EQM","Equipment"],["HR","HR (gồm GA)"]];
+const CA_LIST=[["HC","HC · Hành chính"],["A","Ca ngày (A) · 주간"],["C","Ca đêm (C) · 야간"]];
 const GRPS=["CT","HN","TV","NN"];
-const EX={ // số W38 mẫu (Tổng/Đi làm)
-  Production:{CT:[110,99],HN:[0,0],TV:[575,470],NN:[8,8]}, QC:{CT:[130,118],HN:[0,0],TV:[144,119],NN:[0,0]},
-  Automation:{CT:[0,0],HN:[0,0],TV:[0,0],NN:[0,0]}, INNO:{CT:[8,8],HN:[0,0],TV:[0,0],NN:[0,0]},
-  MM:{CT:[58,48],HN:[0,0],TV:[14,12],NN:[0,0]}, EQM:{CT:[30,29],HN:[0,0],TV:[0,0],NN:[0,0]},
-  HR:{CT:[39,39],HN:[0,0],TV:[1,1],NN:[0,0]}, GA:{CT:[8,6],HN:[1,1],TV:[2,2],NN:[0,0]}
+/* mẫu ngày 17/09 (Tổng/Đi làm) theo Part × Ca × Nhóm — minh hoạ layout, sửa lại theo số thật */
+const EXCA={
+  Production:{ A:{CT:[55,50],TV:[308,238]}, C:{CT:[39,36],TV:[232,167]}, HC:{CT:[5,5]} },
+  QC:{ A:{CT:[68,60],TV:[68,58]}, C:{CT:[55,51],TV:[76,61]}, HC:{CT:[12,11]} },
+  HR:{ HC:{CT:[18,18]}, A:{CT:[12,11]}, C:{CT:[11,10]} }
 };
-function eid(p,g,f){ return `e_${p}_${g}_${f}`; }
+function eid(p,ca,g,f){ return `e_${p}_${ca}_${g}_${f}`; }
+function totId(p,ca,f){ return `e_${p}_${ca}_TOT_${f}`; }
 function buildEntry(){
   const tb=document.querySelector("#entry tbody"); tb.innerHTML="";
   ENTRY_PARTS.forEach(([code,disp])=>{
-    let tds=`<td class="pname">${disp}</td>`;
-    GRPS.forEach(g=>{ tds+=`<td><input type="number" min="0" id="${eid(code,g,'t')}" oninput="calcTot()"></td><td><input type="number" min="0" id="${eid(code,g,'w')}" oninput="calcTot()"></td>`; });
-    tds+=`<td><input type="number" id="${eid(code,'TOT','t')}" readonly style="background:#F4F7FB"></td><td><input type="number" id="${eid(code,'TOT','w')}" readonly style="background:#F4F7FB"></td>`;
-    tb.insertAdjacentHTML("beforeend",`<tr>${tds}</tr>`);
+    tb.insertAdjacentHTML("beforeend",`<tr class="sec"><td class="pname" style="text-align:left" colspan="11">${disp}</td></tr>`);
+    CA_LIST.forEach(([ca,caLbl])=>{
+      let tds=`<td class="pname" style="padding-left:14px;font-weight:500">${caLbl}</td>`;
+      GRPS.forEach(g=>{ tds+=`<td><input type="number" min="0" id="${eid(code,ca,g,'t')}" oninput="calcTot()"></td><td><input type="number" min="0" id="${eid(code,ca,g,'w')}" oninput="calcTot()"></td>`; });
+      tds+=`<td><input type="number" id="${totId(code,ca,'t')}" readonly style="background:#F4F7FB"></td><td><input type="number" id="${totId(code,ca,'w')}" readonly style="background:#F4F7FB"></td>`;
+      tb.insertAdjacentHTML("beforeend",`<tr>${tds}</tr>`);
+    });
   });
 }
 function gv(id){ const el=document.getElementById(id); const n=el?parseInt(el.value):NaN; return isNaN(n)?0:n; }
-function calcTot(){ ENTRY_PARTS.forEach(([code])=>{ let t=0,w=0; GRPS.forEach(g=>{ t+=gv(eid(code,g,'t')); w+=gv(eid(code,g,'w')); }); document.getElementById(eid(code,'TOT','t')).value=t||""; document.getElementById(eid(code,'TOT','w')).value=w||""; }); }
+function calcTot(){ ENTRY_PARTS.forEach(([code])=>CA_LIST.forEach(([ca])=>{ let t=0,w=0; GRPS.forEach(g=>{ t+=gv(eid(code,ca,g,'t')); w+=gv(eid(code,ca,g,'w')); }); const et=document.getElementById(totId(code,ca,'t')), ew=document.getElementById(totId(code,ca,'w')); if(et)et.value=t||""; if(ew)ew.value=w||""; })); }
 function clearEntry(){ document.querySelectorAll('#entry input:not([readonly])').forEach(i=>i.value=""); calcTot(); document.getElementById("jsonout").hidden=true; }
-function fillExample(){ ENTRY_PARTS.forEach(([code])=>GRPS.forEach(g=>{ document.getElementById(eid(code,g,'t')).value=EX[code][g][0]||""; document.getElementById(eid(code,g,'w')).value=EX[code][g][1]||""; })); calcTot(); toast("Đã điền số W38 mẫu — anh sửa lại theo số thật rồi Gửi"); }
+function fillExample(){ clearEntry(); for(const code in EXCA){ for(const ca in EXCA[code]){ const gr=EXCA[code][ca]; for(const g in gr){ const t=document.getElementById(eid(code,ca,g,'t')), w=document.getElementById(eid(code,ca,g,'w')); if(t)t.value=gr[g][0]||""; if(w)w.value=gr[g][1]||""; } } } calcTot(); toast("Đã điền mẫu ngày 17/09 (Ca ngày + Ca đêm + HC) — anh sửa theo số thật rồi Gửi"); }
 function updWeek(){ const v=document.getElementById("in-date").value; const el=document.getElementById("in-week");
   if(!v){ el.textContent="–"; return; } const d=new Date(v); let found="ngoài phạm vi";
   WKALL.forEach(k=>{ const s=WK_START(k), e=new Date(s); e.setDate(s.getDate()+6); if(d>=s&&d<=e) found=k; });
   el.textContent=found;
 }
-/* Phân tích khối dán: dò tên Part + nhóm, lấy 2 số nguyên đầu (Tổng, Đi làm) — best-effort, anh kiểm tra lại lưới */
+/* Phân tích khối dán từ sheet Sum: dò Part + nhóm, mỗi dòng lấy các cặp (Sum, Work)
+   theo thứ tự cột HC · Ca ngày (A) · Ca đêm (C). Mỗi cặp = 1 số nguyên đứng ngay trước ô "%". */
 function parsePaste(){
   const txt=document.getElementById("paste").value; if(!txt.trim()){ toast("Chưa có dữ liệu dán"); return; }
   const partMatch=s=>{ s=s.toLowerCase();
-    if(s.includes("production")||s.includes("sản xuất")) return "Production";
-    if(s.startsWith("qc")||s.includes("품질")) return "QC";
-    if(s.includes("automation")||s.includes("자동화")) return "Automation";
+    if(s.includes("prod")||s.includes("sản xuất")||s.includes("생산")) return "Production";
+    if(/\bqc\b/.test(s)||s.includes("품질")) return "QC";
     if(s.includes("inno")||s.includes("혁신")) return "INNO";
-    if(s.includes("mm")||s.includes("material")||s.includes("자재")) return "MM";
+    if(/\bmm\b/.test(s)||s.includes("material")||s.includes("자재")) return "MM";
     if(s.includes("eqm")||s.includes("equipment")||s.includes("설비")) return "EQM";
     if(/\bhr\b/.test(s)||s.includes("인사")||s.includes("nhân sự")) return "HR";
-    if(/\bga\b/.test(s)) return "GA";
+    if(/\bga\b/.test(s)) return "HR"; // GA gộp HR
     return null; };
   const grpMatch=s=>{ s=s.toLowerCase();
-    if(s.includes("ngắn")||s.includes("단기")) return "NN";
-    if(s.includes("chính thức")||s.includes("정규")) return "CT";
-    if(s.includes("hướng nghiệp")||s.includes("직업")) return "HN";
-    if(s.includes("thời vụ")||s.includes("용역")) return "TV";
+    if(s.includes("ngắn")||s.includes("단기")||/\bnn\b/.test(s)) return "NN";
+    if(s.includes("chính thức")||s.includes("정규")||/\bct\b/.test(s)) return "CT";
+    if(s.includes("hướng nghiệp")||s.includes("직업")||/\bhn\b/.test(s)) return "HN";
+    if(s.includes("thời vụ")||s.includes("용역")||/\btv\b/.test(s)) return "TV";
     return null; };
+  // trích các cặp (Sum,Work) từ 1 dòng: số nguyên đứng ngay trước ô "%" là Sum, số nguyên kế tiếp là Work
+  const pairsOf=cells=>{ const pr=[];
+    for(let i=0;i<cells.length;i++){ if(/^\d+$/.test(cells[i]) && /%$/.test((cells[i+1]||"").trim())){
+      const sum=+cells[i]; let j=i+2; while(j<cells.length && !/^\d+$/.test(cells[j])) j++;
+      const work=j<cells.length? +cells[j] : sum; pr.push([sum,work]); i=j; } }
+    return pr; };
   let cur=null,n=0;
   txt.split(/\r?\n/).forEach(line=>{
     const cells=line.split(/\t|;|\|/).map(c=>c.trim());
@@ -581,16 +611,19 @@ function parsePaste(){
     const p=partMatch(joined); if(p) cur=p;
     const g=grpMatch(joined);
     if(cur&&g){
-      const ints=cells.map(c=>c.replace(/[^\d-]/g,"")).filter(c=>/^\d+$/.test(c)).map(Number);
-      if(ints.length>=1){ const t=document.getElementById(eid(cur,g,'t')); if(t){ t.value=ints[0]; const w=document.getElementById(eid(cur,g,'w')); if(w&&ints.length>=2) w.value=ints[1]; n++; } }
+      const pr=pairsOf(cells);           // thứ tự: HC, A, C, (Tổng)
+      const map=[["HC",0],["A",1],["C",2]];
+      map.forEach(([ca,i])=>{ if(pr[i]){ const t=document.getElementById(eid(cur,ca,g,'t')); const w=document.getElementById(eid(cur,ca,g,'w'));
+        if(t){ t.value=pr[i][0]||""; if(w)w.value=pr[i][1]||""; } } });
+      if(pr.length) n++;
     }
   });
-  calcTot(); toast(n? `Đã dò được ${n} dòng nhóm — anh kiểm tra & sửa lại lưới rồi Gửi` : "Chưa khớp được — anh điền tay hoặc gửi em mẫu khối dán để chỉnh bộ dò");
+  calcTot(); toast(n? `Đã dò ${n} dòng nhóm (HC/Ca ngày/Ca đêm) — anh kiểm tra lưới rồi Gửi` : "Chưa khớp — điền tay, hoặc gửi em 1 bản copy dạng text để khoá đúng cột");
 }
 function collectRecords(){
   const date=document.getElementById("in-date").value; if(!date){ toast("Chọn Ngày trước"); return null; }
   const recs=[];
-  ENTRY_PARTS.forEach(([code])=>GRPS.forEach(g=>{ const t=gv(eid(code,g,'t')), w=gv(eid(code,g,'w')); if(t>0||w>0) recs.push({date,part:code,group:g,tong:t,dilam:w}); }));
+  ENTRY_PARTS.forEach(([code])=>CA_LIST.forEach(([ca])=>GRPS.forEach(g=>{ const t=gv(eid(code,ca,g,'t')), w=gv(eid(code,ca,g,'w')); if(t>0||w>0) recs.push({date,part:code,group:g,ca:ca,tong:t,dilam:w}); })));
   return {date,records:recs};
 }
 function submitEntry(){
