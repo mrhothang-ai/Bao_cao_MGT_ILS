@@ -190,7 +190,7 @@ table.entry tr.tot td.pname{color:var(--accent)}
   <div class="blocktitle" style="margin-top:6px"><span class="pill" style="background:#5B6B7F">A·1</span><h2 style="font-size:13.5px">TỶ LỆ ĐI LÀM — Năm · Tháng · Tuần · Ngày (%)</h2><span class="sub">bấm tên Part để xem chi tiết theo nhóm · đỏ = dưới 90%</span></div>
   <div class="tscroll"><table class="rep" id="tblA"><thead></thead><tbody></tbody></table></div>
 
-  <div class="blocktitle"><span class="pill" style="background:#5B6B7F">A·2</span><h2 style="font-size:13.5px">SO TIÊU CHUẨN BCD THEO TUẦN — CẢ 2 CA</h2><span class="sub">Ca ngày (A) · Ca đêm (C) · Tổng gồm HC · ca chưa nhập hiện "–" · đỏ = chưa đạt tiêu chuẩn</span></div>
+  <div class="blocktitle"><span class="pill" style="background:#5B6B7F">A·2</span><h2 style="font-size:13.5px">SO TIÊU CHUẨN BCD THEO TUẦN — CẢ 2 CA</h2><span class="sub" id="bcdSub">Ca ngày (A) · Ca đêm (C) · Tổng gồm HC · ca chưa nhập hiện "–" · đỏ = chưa đạt tiêu chuẩn</span></div>
   <div class="tscroll"><table class="rep" id="tblBCD"><thead></thead><tbody></tbody></table></div>
 
   <div class="blocktitle"><span class="pill" style="background:#5B6B7F">A·3</span><h2 style="font-size:13.5px">CƠ CẤU NHÓM LAO ĐỘNG — W38</h2><span class="sub">theo danh sách · toàn NM và từng Part</span></div>
@@ -224,7 +224,7 @@ table.entry tr.tot td.pname{color:var(--accent)}
       <label>Ngày</label><input type="date" id="in-date" onchange="updWeek()">
       <label>thuộc tuần</label><span class="pill" id="in-week">–</span>
     </div>
-    <textarea id="paste" placeholder="Dán (Ctrl+V) khối copy từ sheet Sum (cột HC / Ca ngày / Ca đêm) rồi bấm Phân tích… hệ thống dò Part + nhóm và lấy Sum/Work của từng ca."></textarea>
+    <textarea id="paste" placeholder="Dán (Ctrl+V) khối copy từ sheet Sum — gồm dòng tiêu đề 'ngày dd/mm/yyyy' và các dòng số (HC/Ca ngày/Ca đêm). KHÔNG cần cột nhãn. Thứ tự Part: Production → QC → MM → EQM → HR → INNO. Bấm Phân tích để tự điền lưới + tự nhận Ngày."></textarea>
     <div class="form-btns">
       <button class="act" onclick="parsePaste()">🔎 Phân tích khối đã dán</button>
       <button class="act" onclick="fillExample()">Điền mẫu (ngày 17/09)</button>
@@ -300,7 +300,9 @@ const BCD_ROWS=[
   {key:"B2|hr",part:"HR",label:"HR (gồm GA)",l2:"인사"}
 ];
 let BCDATA={};   // BCDATA[tuan][part] = {day,night,hc,total} — tiêu chuẩn theo tuần
-let ACTUAL={};   // ACTUAL[tuan][part] = {tong,dilam} — số thực tế theo tuần
+let ACTUAL={};   // ACTUAL[tuan][part] = {tong,dilam,A,C,HC} — thực tế NGÀY mới nhất của tuần
+let LATESTDAY={};// LATESTDAY[tuan] = "yyyy-mm-dd" — ngày mới nhất có số trong tuần
+function fmtDMY(s){ const p=String(s).slice(0,10).split("-"); return p.length===3? p[2]+"/"+p[1]+"/"+p[0] : String(s); }
 const GRP_NAME={CT:["Chính thức","정규직"],HN:["Hướng nghiệp","직업인력"],TV:["Thời vụ","용역"]};
 const expanded=new Set();
 
@@ -439,11 +441,15 @@ function toggleExp(key,e){ if(e){ if(e.target.closest(".hidebtn")) return; e.sto
    Ca chưa nhập (vd ca đêm chưa đi làm) hiện "–"; Tổng vẫn tính từ số đã có. */
 function renderBCD(){
   const tbl=document.getElementById("tblBCD");
+  const dinfo=LATESTDAY[selWk];
+  const dnote = dinfo ? `ngày ${fmtDMY(dinfo)}` : `tổng tuần ${selWk} — chưa có số theo ngày`;
+  const sub=document.getElementById("bcdSub");
+  if(sub) sub.innerHTML = `Số thực tế: <b>${dnote}</b> · Ca ngày (A) · Ca đêm (C) · Tổng gồm HC · ca chưa nhập hiện "–" · đỏ = chưa đạt tiêu chuẩn`;
   tbl.querySelector("thead").innerHTML=
     `<tr class="grp"><th class="lbl-col" rowspan="2" style="text-align:left">Part</th>`+
     `<th colspan="3" class="col-day">Ca ngày (A) · 주간</th>`+
     `<th colspan="3">Ca đêm (C) · 야간</th>`+
-    `<th colspan="4" class="col-wsel">Tổng (gồm HC) — tuần ${selWk}</th></tr>`+
+    `<th colspan="4" class="col-wsel">Tổng (gồm HC) — ${dinfo?fmtDMY(dinfo):selWk}</th></tr>`+
     `<tr><th class="col-day">TC</th><th class="col-day">Đi làm</th><th class="col-day">Đạt</th>`+
     `<th>TC</th><th>Đi làm</th><th>Đạt</th>`+
     `<th class="col-wsel">TC</th><th class="col-wsel">Đi làm</th><th class="col-wsel">Đạt</th><th class="col-wsel">Gap</th></tr>`;
@@ -502,6 +508,8 @@ function applyLive(j){
         A:{t:S.A.t,w:S.A.w,has:S.A.t>0}, C:{t:S.C.t,w:S.C.w,has:S.C.t>0}, HC:{t:S.HC.t,w:S.HC.w,has:S.HC.t>0}}; } });
   // tiêu chuẩn BCD theo tuần (nếu nguồn có) — giữ nguyên nếu lần gọi này không kèm bcd
   if(j.bcd && Object.keys(j.bcd).length) BCDATA=j.bcd;
+  // ngày mới nhất mỗi tuần (chỉ khi có số theo ngày thật) — để A·2 ghi rõ đang lấy ngày nào
+  LATESTDAY = (j.nlday && Object.keys(j.nlday).length && j.latestDay) ? j.latestDay : {};
   // toàn bộ tuần có trong dữ liệu, sắp theo số tuần
   const wks=Object.keys(nl).sort((a,b)=>wkNum(a)-wkNum(b));
   if(wks.length){ WKALL=wks; MONTHS=monthsOf(WKALL); if(!WKALL.includes(selWk)) selWk=WKALL[WKALL.length-1]; buildSelector(); }
@@ -579,46 +587,44 @@ function updWeek(){ const v=document.getElementById("in-date").value; const el=d
   WKALL.forEach(k=>{ const s=WK_START(k), e=new Date(s); e.setDate(s.getDate()+6); if(d>=s&&d<=e) found=k; });
   el.textContent=found;
 }
-/* Phân tích khối dán từ sheet Sum: dò Part + nhóm, mỗi dòng lấy các cặp (Sum, Work)
-   theo thứ tự cột HC · Ca ngày (A) · Ca đêm (C). Mỗi cặp = 1 số nguyên đứng ngay trước ô "%". */
+/* Phân tích khối dán từ sheet Sum (KHÔNG cần cột nhãn).
+   - Cột cố định mỗi ca 5 ô [Sum,%,Work,%,Off]: HC=0..4, Ca ngày A=5..9, Ca đêm C=10..14, Tổng=15..19.
+   - Thứ tự Part cố định + số dòng nhóm mỗi Part cố định (khớp sheet Sum hiện tại).
+   - Tự lấy Ngày từ dòng tiêu đề "… ngày dd/mm/yyyy". Kiểm tra Tổng Part = Σ nhóm để cảnh báo nếu lệch. */
+const SUM_PART_ORDER=["Production","QC","MM","EQM","HR","INNO"];
+const SUM_GROUPS={Production:["CT","HN","TV"],QC:["CT","HN","TV"],MM:["CT","HN","TV"],EQM:["CT","HN"],HR:["CT","HN"],INNO:["CT","HN"]};
 function parsePaste(){
-  const txt=document.getElementById("paste").value; if(!txt.trim()){ toast("Chưa có dữ liệu dán"); return; }
-  const partMatch=s=>{ s=s.toLowerCase();
-    if(s.includes("prod")||s.includes("sản xuất")||s.includes("생산")) return "Production";
-    if(/\bqc\b/.test(s)||s.includes("품질")) return "QC";
-    if(s.includes("inno")||s.includes("혁신")) return "INNO";
-    if(/\bmm\b/.test(s)||s.includes("material")||s.includes("자재")) return "MM";
-    if(s.includes("eqm")||s.includes("equipment")||s.includes("설비")) return "EQM";
-    if(/\bhr\b/.test(s)||s.includes("인사")||s.includes("nhân sự")) return "HR";
-    if(/\bga\b/.test(s)) return "HR"; // GA gộp HR
-    return null; };
-  const grpMatch=s=>{ s=s.toLowerCase();
-    if(s.includes("ngắn")||s.includes("단기")||/\bnn\b/.test(s)) return "NN";
-    if(s.includes("chính thức")||s.includes("정규")||/\bct\b/.test(s)) return "CT";
-    if(s.includes("hướng nghiệp")||s.includes("직업")||/\bhn\b/.test(s)) return "HN";
-    if(s.includes("thời vụ")||s.includes("용역")||/\btv\b/.test(s)) return "TV";
-    return null; };
-  // trích các cặp (Sum,Work) từ 1 dòng: số nguyên đứng ngay trước ô "%" là Sum, số nguyên kế tiếp là Work
-  const pairsOf=cells=>{ const pr=[];
-    for(let i=0;i<cells.length;i++){ if(/^\d+$/.test(cells[i]) && /%$/.test((cells[i+1]||"").trim())){
-      const sum=+cells[i]; let j=i+2; while(j<cells.length && !/^\d+$/.test(cells[j])) j++;
-      const work=j<cells.length? +cells[j] : sum; pr.push([sum,work]); i=j; } }
-    return pr; };
-  let cur=null,n=0;
-  txt.split(/\r?\n/).forEach(line=>{
-    const cells=line.split(/\t|;|\|/).map(c=>c.trim());
-    const joined=cells.join(" ");
-    const p=partMatch(joined); if(p) cur=p;
-    const g=grpMatch(joined);
-    if(cur&&g){
-      const pr=pairsOf(cells);           // thứ tự: HC, A, C, (Tổng)
-      const map=[["HC",0],["A",1],["C",2]];
-      map.forEach(([ca,i])=>{ if(pr[i]){ const t=document.getElementById(eid(cur,ca,g,'t')); const w=document.getElementById(eid(cur,ca,g,'w'));
-        if(t){ t.value=pr[i][0]||""; if(w)w.value=pr[i][1]||""; } } });
-      if(pr.length) n++;
+  const raw=document.getElementById("paste").value; if(!raw.trim()){ toast("Chưa có dữ liệu dán"); return; }
+  // ngày từ tiêu đề
+  const dm=raw.match(/ng[àa]y\s*(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/i);
+  if(dm){ const iso=dm[3]+"-"+dm[2].padStart(2,"0")+"-"+dm[1].padStart(2,"0"); const di=document.getElementById("in-date"); if(di){di.value=iso; updWeek();} }
+  const num=c=>{ c=String(c==null?"":c).replace(/[^\d-]/g,""); if(c===""||c==="-")return 0; const n=parseInt(c,10); return isNaN(n)?0:n; };
+  // chỉ giữ dòng dữ liệu (>=3 ô chứa "%"); tách theo tab
+  const rows=raw.split(/\r?\n/).filter(l=> (l.match(/%/g)||[]).length>=3).map(l=> l.split("\t"));
+  if(rows.length<3){ toast("Chưa đọc được số — kiểm tra đã copy đủ khối (có các ô %)"); return; }
+  clearEntry();
+  let idx=0,n=0,warn=false;
+  for(const part of SUM_PART_ORDER){
+    const tot=rows[idx]; idx++;                     // dòng TỔNG của part
+    const declared = tot? num(tot[15]) : 0;
+    let gsum=0;
+    for(const g of (SUM_GROUPS[part]||[])){
+      const c=rows[idx]; idx++;
+      if(!c){ warn=true; continue; }
+      const cells={HC:[num(c[0]),num(c[2])], A:[num(c[5]),num(c[7])], C:[num(c[10]),num(c[12])]};
+      ["HC","A","C"].forEach(ca=>{ const v=cells[ca];
+        const t=document.getElementById(eid(part,ca,g,'t')), w=document.getElementById(eid(part,ca,g,'w'));
+        if(t){ t.value=v[0]||""; if(w)w.value=v[1]||""; } });
+      gsum += num(c[15]); n++;
     }
-  });
-  calcTot(); toast(n? `Đã dò ${n} dòng nhóm (HC/Ca ngày/Ca đêm) — anh kiểm tra lưới rồi Gửi` : "Chưa khớp — điền tay, hoặc gửi em 1 bản copy dạng text để khoá đúng cột");
+    if(declared && gsum!==declared) warn=true;       // Tổng Part ≠ Σ nhóm → layout lệch
+  }
+  calcTot();
+  const dtxt = dm? ` · ngày ${dm[1]}/${dm[2]}/${dm[3]}` : "";
+  toast(n? (warn
+      ? `Đã nạp ${n} dòng${dtxt} nhưng TỔNG lệch — có thể sheet đổi thứ tự/nhóm. Kiểm tra kỹ lưới trước khi Gửi`
+      : `✓ Đã nạp ${n} dòng nhóm theo ca (HC/Ngày/Đêm)${dtxt} — kiểm tra rồi Gửi`)
+    : "Chưa khớp — kiểm tra đã copy đủ khối số (gồm các ô %) chưa");
 }
 function collectRecords(){
   const date=document.getElementById("in-date").value; if(!date){ toast("Chọn Ngày trước"); return null; }
